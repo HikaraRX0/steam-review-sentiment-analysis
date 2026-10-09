@@ -12,7 +12,7 @@ for author in file["author"]:
     playtime =getplayTime(author)
     result.append(playtime)
 file["playtime_at_review"] = result
-file = file[["recommendationid","review","voted_up","language","timestamp_created","playtime_at_review"]].copy()
+file = file[["recommendationid","review","voted_up","votes_up","language","timestamp_created","playtime_at_review"]].copy()
 
 # delete the same comment id, not just same review
 file = file.drop_duplicates(subset=["recommendationid","review"])
