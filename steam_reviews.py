@@ -79,7 +79,9 @@ def main():
         output.write_text(json.dumps(reviews, ensure_ascii=False, indent=2), encoding="utf-8")
     except (requests.RequestException, ValueError, OSError) as exc:
         parser.exit(1, f"Error: {exc}\n")
-    print(f"Saved {len(reviews)} reviews to {output}")
+    print(f"Successfully fetched {len(positive_reviews)} positive reviews")
+    print(f"Successfully fetched {len(negative_reviews)} negative reviews")
+    print(f"Saved {len(reviews)} total reviews to {output}")
 
 
 if __name__ == "__main__":
