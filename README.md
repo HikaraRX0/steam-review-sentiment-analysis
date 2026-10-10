@@ -1,22 +1,30 @@
 # Steam Review Sentiment Analysis
 
-Collect public Steam game reviews for sentiment analysis using the official
+Collect and clean public Steam game reviews for sentiment analysis using the official
 [Steam IUserReviewsService API](https://partner.steamgames.com/doc/webapi/IUserReviewsService).
-The current script fetches and saves raw reviews; it does not train a model or
-predict sentiment. No API key is required.
+`steam_reviews.py` fetches raw reviews, and `clean_data.py` prepares a CSV dataset
+for analysis. The scripts do not train a model or predict sentiment. No API key
+is required.
 
 ## Installation
 
-Install Python 3 and the required dependency:
+Install Python 3, create a virtual environment, and install the dependencies
+(`requests`, `langdetect`, and `pandas`). Run these commands from the project directory:
 
 ```sh
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-## Usage
+Activate the environment with `source .venv/bin/activate` in each new terminal
+session before running the scripts. On Windows, use `.venv\Scripts\activate`
+instead. If using an IDE, select the Python interpreter inside `.venv`.
+
+## Collect Reviews
 
 ```sh
-python3 steam_reviews.py 570 --num-reviews 500 --language english
+python steam_reviews.py 570 --num-reviews 500 --language english
 ```
 
 Replace `570` with the game's AppID from its Steam store URL.
@@ -31,7 +39,7 @@ The script fetches positive and negative reviews separately. The example above
 requests up to 500 of each, for up to 1,000 reviews total. Fewer reviews are saved
 if Steam has fewer matching reviews available.
 
-## Output
+### Raw JSON Output
 
 Reviews are saved to `reviews_<appid>_raw.json` in the current directory, for
 example `reviews_570_raw.json`. Running the script again for the same AppID
@@ -47,6 +55,61 @@ The JSON file contains a list of raw review objects, including:
 
 Positive reviews appear first, followed by negative reviews. Each group is
 fetched newest first. Off-topic reviews are excluded by Steam's default filter.
+
+## Clean Reviews
+
+Run `clean_data.py` with the input JSON path followed by the output CSV path:
+
+```sh
+python clean_data.py reviews_570_raw.json reviews_570.csv
+```
+
+For the sample dataset in this project:
+
+```sh
+python clean_data.py reviews_730_raw.json reviews_730.csv
+```
+
+| Argument | Description |
+| --- | --- |
+| `input_file` | Path to the raw JSON dataset (required) |
+| `output_file` | Path to the cleaned CSV dataset (required) |
+
+Both paths can be customized. Relative paths are resolved from the directory
+containing `clean_data.py`; absolute paths are also accepted. The output directory
+must already exist. An existing output file is overwritten.
+
+The cleaning steps include:
+
+- Extracting `playtime_at_review` from each review's `author` metadata.
+- Keeping the columns listed below.
+- Removing duplicate reviews by `recommendationid`.
+- Detecting the language of the review text with `langdetect` and keeping reviews
+  detected as English. Reviews whose language cannot be detected are removed.
+
+Language filtering uses the review text, rather than the JSON `language` field.
+Short or ambiguous reviews may be misclassified. A fixed detection seed makes
+the results reproducible.
+
+The terminal prints positive (`True`) and negative (`False`) review counts before
+and after language filtering, along with a preview of the first 10 output rows.
+These messages report processing results and are not errors.
+
+### Cleaned CSV Output
+
+The CSV is saved without a DataFrame index and contains:
+
+| Column | Description |
+| --- | --- |
+| `recommendationid` | Steam review ID |
+| `review` | Original review text |
+| `voted_up` | `True` for recommended, `False` for not recommended |
+| `language` | Original language value from Steam |
+| `timestamp_created` | Review creation time as a Unix timestamp |
+| `timestamp_updated` | Last update time as a Unix timestamp |
+| `playtime_at_review` | Author's playtime at review, in minutes |
+
+The script preserves review text; it does not tokenize it or remove punctuation.
 
 ## Python Example
 
