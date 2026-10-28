@@ -7,6 +7,8 @@ import time
 
 import requests
 
+from config import GAME_IDS
+
 
 API_URL = "https://api.steampowered.com/IUserReviewsService/GetAppReviews/v1/"
 
@@ -52,16 +54,18 @@ def get_reviews(appid, num_reviews=100, review_type=0, language="english", *, re
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("appid", type=int, help="Steam game AppID (e.g. 570)")
+    parser.add_argument("game", type=str.upper, choices=GAME_IDS, help="Game name",)
     parser.add_argument("--num-reviews", type=int, default=100)
     parser.add_argument("--language", default="english", help="Steam language code or all")
     parser.add_argument("--output", type=str, default=None, help="Output JSON file path")
     args = parser.parse_args()
+    game_name = args.game
+    appid = GAME_IDS[game_name]
 
     try:
         # Fetch positive reviews
         positive_reviews = get_reviews(
-            args.appid,
+            appid,
             args.num_reviews,
             1,
             args.language
@@ -69,14 +73,14 @@ def main():
 
         # Fetch negative reviews
         negative_reviews = get_reviews(
-            args.appid,
+            appid,
             args.num_reviews,
             2,
             args.language
         )
         reviews = positive_reviews + negative_reviews
 
-        output = Path(args.output or f"reviews_{args.appid}_raw.json")
+        output = Path(args.output or f"reviews_{game_name}_{appid}_raw.json")
         output.write_text(json.dumps(reviews, ensure_ascii=False, indent=2), encoding="utf-8")
     except (requests.RequestException, ValueError, OSError) as exc:
         parser.exit(1, f"Error: {exc}\n")
