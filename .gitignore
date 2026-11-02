@@ -6,3 +6,5 @@ tests
 *.csv
 config.py
 data
+.ipynb_checkpoints
+.DS_Store
