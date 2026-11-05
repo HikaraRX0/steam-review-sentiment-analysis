@@ -99,7 +99,7 @@ def collate_reviews(batch):
 
     labels = torch.tensor(labels, dtype=torch.long)
 
-    return token_ids, lengths, labels
+    return (token_ids, lengths), labels
 
 def create_dataloader(data_dir, genre, batch_size=32):
     """Return train, validation, and test DataLoaders plus a training-only vocabulary."""
