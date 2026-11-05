@@ -1,5 +1,7 @@
 import torch
 from sklearn.metrics import accuracy_score, f1_score
+from time import perf_counter
+from utils import synchronize_device
 
 def _run_epoch(model, loader, loss_fn, optimizer, device):
     """Run one training or evaluation epoch"""
@@ -7,12 +9,15 @@ def _run_epoch(model, loader, loss_fn, optimizer, device):
     model.train(training) # switch to training model if training is True
 
     total_loss = 0.0
+    total_tokens = 0
     targets = []  # y
     prediction = []  # y_hat
 
     with torch.set_grad_enabled(training):
         # load a mini batch each time
         for features, labels in loader:
+            total_tokens += features[1].sum().item()
+
             features = tuple(x.to(device) for x in features)
             labels = labels.to(device)
 
@@ -38,7 +43,8 @@ def _run_epoch(model, loader, loss_fn, optimizer, device):
         return {
             "loss": total_loss/len(targets),
             "accuracy": accuracy_score(targets, prediction),
-            "macro_f1": f1_score(targets, prediction, average="macro", zero_division=0)
+            "macro_f1": f1_score(targets, prediction, average="macro", zero_division=0),
+            "num_tokens": total_tokens,
                 }
 
 def train_one_epoch(model, loader, loss_fn, optimizer, device):
@@ -51,28 +57,50 @@ def evaluate(model, loader, loss_fn, device):
     return _run_epoch(model, loader, loss_fn, None, device)
 
 
-def train_model(model, train_loader, val_loader, loss_fn, optimizer, num_epochs, device):
+def train_model(model, train_loader, val_loader, loss_fn, optimizer, num_epochs, device, on_epoch_end=None):
     """Run training for multiple epochs."""
-    metric_history = [] # record metrics scores: loss, accuracy, marco_f1
+    device = torch.device(device)  # support string
+    metric_history = []  # record metrics scores: loss, accuracy, marco_f1
 
+    device_name = str(device)
+    if device.type == "cuda":
+        device_name += f"({torch.cuda.get_device_name(device)})"
+
+    print(f"Training on: {device_name}")
+    
     for epoch in range(num_epochs):
+        synchronize_device(device)
+        start = perf_counter()
+
         train_metrics = train_one_epoch(model, train_loader, loss_fn, optimizer, device)
+        synchronize_device(device)
+        train_seconds = perf_counter() - start
+
         val_metrics = evaluate(model, val_loader, loss_fn, device)
+
+        tokens_per_second = (
+            train_metrics["num_tokens"] / train_seconds
+        )
 
         metric_history.append({
             "epoch": epoch + 1,
             "train": train_metrics,
             "val": val_metrics,
+            "train_seconds": train_seconds,
+            "tokens_per_second": tokens_per_second,
         })
 
-        print(
-            f"Epoch {epoch + 1:02d} | "
-            f"Train loss: {train_metrics['loss']:.3f} | "
-            f"Train accuracy: {train_metrics['accuracy']:.3f} | "
-            f"Val loss: {val_metrics['loss']:.3f} | "
-            f"Val accuracy: {val_metrics['accuracy']:.3f} | "
-            f"Val Macro-F1: {val_metrics['macro_f1']:.3f}"
-        )
+        if on_epoch_end is not None:
+            on_epoch_end(metric_history)
+
+    total_tokens = sum(
+        item["train"]["num_tokens"] for item in metric_history
+    )
+    total_seconds = sum(
+        item["train_seconds"] for item in metric_history
+    )
+
+    print(f"Average speed: {total_tokens / total_seconds:.0f} tokens/sec")
 
     return metric_history
 
