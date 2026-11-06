@@ -1,137 +1,151 @@
 # Steam Review Sentiment Analysis
 
-Collect and clean public Steam game reviews for sentiment analysis using the official
-[Steam IUserReviewsService API](https://partner.steamgames.com/doc/webapi/IUserReviewsService).
-`steam_reviews.py` fetches raw reviews, and `clean_data.py` prepares a CSV dataset
-for analysis. The scripts do not train a model or predict sentiment. No API key
-is required.
+Binary sentiment classification for English Steam reviews, using recommendation
+labels: **1 = recommended**, **0 = not recommended**. The project covers review
+collection, data preprocessing, and comparison of four baseline models.
 
-## Installation
+## Project Files
 
-Install Python 3, create a virtual environment, and install the dependencies
-(`requests`, `langdetect`, and `pandas`). Run these commands from the project directory:
+| File | Purpose |
+| --- | --- |
+| [steam_reviews.py](steam_reviews.py) | Collect positive and negative Steam reviews |
+| [clean_data.py](clean_data.py) | Remove duplicate reviews and keep English text |
+| [data_preprocess.ipynb](data_preprocess.ipynb) | Merge game datasets, inspect data, and create train/validation/test splits |
+| [logistic_reg_baseline.ipynb](logistic_reg_baseline.ipynb) | TF-IDF + Logistic Regression |
+| [textcnn_baseline.ipynb](textcnn_baseline.ipynb) | TextCNN classifier |
+| [bilstm_baseline.ipynb](bilstm_baseline.ipynb) | Bidirectional LSTM classifier |
+| [bert_baseline.ipynb](bert_baseline.ipynb) | Fine-tune `google-bert/bert-base-uncased` |
+| `text_data.py` / `bert_data.py` | Dataset and data loader utilities |
+| `train.py` / `utils.py` | Shared training, evaluation, device selection, and plotting |
+
+## Setup
+
+Use a Python environment with these dependencies:
 
 ```sh
-python3 -m venv .venv
-source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-Activate the environment with `source .venv/bin/activate` in each new terminal
-session before running the scripts. On Windows, use `.venv\Scripts\activate`
-instead. If using an IDE, select the Python interpreter inside `.venv`.
+Select the same environment as the notebook kernel. For GPU training, use a
+PyTorch installation compatible with your CUDA setup. BERT downloads its pretrained
+model and tokenizer on the first run.
+
+Create a local `config.py` in the project root with the game names and Steam
+AppIDs you want to use. For example:
+
+```python
+GAME_IDS = {"CS2": 730}
+FPS_GAME_IDS = GAME_IDS.copy()
+```
+
+`GAME_IDS` is used by the collection script; `FPS_GAME_IDS` selects the games
+merged by the preprocessing notebook. Configuration and datasets are excluded
+from Git.
 
 ## Collect Reviews
 
-```sh
-python steam_reviews.py 570 --num-reviews 500 --language english
-```
+Run commands from the project root. Create `data/raw`, `data/processed`, and
+`data/merged` before saving files.
 
-Replace `570` with the game's AppID from its Steam store URL.
+Use a game name from `GAME_IDS` in `config.py`:
+
+```sh
+python steam_reviews.py CS2 --num-reviews 500 --language english --output data/raw/reviews_CS2_730_raw.json
+```
 
 | Argument | Description | Default |
 | --- | --- | --- |
-| `appid` | Steam game AppID (required) | — |
-| `--num-reviews` | Maximum number of reviews to fetch **per review type** | `100` |
-| `--language` | Steam language code, or `all` for every language | `english` |
+| `game` | Game name from `GAME_IDS`, converted to uppercase | Required |
+| `--num-reviews` | Maximum reviews to fetch **per review type** | `100` |
+| `--language` | Steam language code, or `all` for all languages | `english` |
+| `--output` | Output JSON path | `reviews_<GAME>_<appid>_raw.json` |
 
-The script fetches positive and negative reviews separately. The example above
-requests up to 500 of each, for up to 1,000 reviews total. Fewer reviews are saved
-if Steam has fewer matching reviews available.
+The script fetches positive and negative reviews separately, so this example
+requests up to **1,000 reviews total**. Fewer may be returned if not enough reviews
+are available. Repeat for each configured game.
 
-### Raw JSON Output
+The output is a JSON list of review objects, including review text, `voted_up`,
+language, timestamps, and author information. Positive reviews are saved first,
+followed by negative reviews. The terminal reports the counts and output path.
 
-Reviews are saved to `reviews_<appid>_raw.json` in the current directory, for
-example `reviews_570_raw.json`. Running the script again for the same AppID
-overwrites this file.
+If `--output` is omitted, the JSON is saved in the current directory. The output
+directory must already exist; an existing output file is overwritten.
 
-The JSON file contains a list of raw review objects, including:
+### Use from Python
 
-- `review`: Review text.
-- `voted_up`: `true` for recommended, `false` for not recommended.
-- `language`: Language of the review.
-- `timestamp_created` and `timestamp_updated`: Unix timestamps.
-- `author`: Author metadata, including playtime.
+```python
+from steam_reviews import get_reviews
 
-Positive reviews appear first, followed by negative reviews. Each group is
-fetched newest first. Off-topic reviews are excluded by Steam's default filter.
+reviews = get_reviews(730, num_reviews=500, review_type=0, language="english")
+for review in reviews:
+    print(review["review"], review["voted_up"])
+```
+
+`review_type=0` includes both types, `1` positive, and `2` negative. A single
+function call returns up to `num_reviews` reviews in total, unlike the CLI's
+separate requests per type. The function returns data without saving a file.
+
+Requests use pagination with up to 100 reviews per page, a 30-second timeout,
+and a one-second delay between pages. The delay can be changed using
+`request_delay`; HTTP failures are not automatically retried.
 
 ## Clean Reviews
 
-Run `clean_data.py` with the input JSON path followed by the output CSV path:
+Pass the raw JSON path and the desired CSV path:
 
 ```sh
-python clean_data.py reviews_570_raw.json reviews_570.csv
-```
-
-For the sample dataset in this project:
-
-```sh
-python clean_data.py reviews_730_raw.json reviews_730.csv
+python clean_data.py data/raw/reviews_CS2_730_raw.json data/processed/reviews_CS2_730.csv
 ```
 
 | Argument | Description |
 | --- | --- |
-| `input_file` | Path to the raw JSON dataset (required) |
-| `output_file` | Path to the cleaned CSV dataset (required) |
+| `input_file` | Raw JSON file produced by the collection tool |
+| `output_file` | Destination for the cleaned CSV |
 
-Both paths can be customized. Relative paths are resolved from the directory
-containing `clean_data.py`; absolute paths are also accepted. The output directory
-must already exist. An existing output file is overwritten.
+Both arguments are required. Relative paths are resolved from the directory
+containing `clean_data.py`; absolute paths also work. The output directory must
+already exist, and an existing output file is overwritten.
 
-The cleaning steps include:
+The tool:
 
-- Extracting `playtime_at_review` from each review's `author` metadata.
-- Keeping the columns listed below.
-- Removing duplicate reviews by `recommendationid`.
-- Detecting the language of the review text with `langdetect` and keeping reviews
-  detected as English. Reviews whose language cannot be detected are removed.
+- Extracts `playtime_at_review` from author information.
+- Removes duplicate reviews by `recommendationid`.
+- Uses `langdetect` on the review text to keep English reviews; text whose
+  language cannot be detected is excluded. Short reviews may be misclassified.
+- Shuffles rows with `random_state=42` and saves the CSV without a DataFrame index.
 
-Language filtering uses the review text, rather than the JSON `language` field.
-Short or ambiguous reviews may be misclassified. A fixed detection seed makes
-the results reproducible.
+The terminal shows recommendation counts before and after language filtering,
+followed by the first 10 cleaned rows. The review text itself is preserved.
 
-The terminal prints positive (`True`) and negative (`False`) review counts before
-and after language filtering, along with a preview of the first 10 output rows.
-These messages report processing results and are not errors.
-
-### Cleaned CSV Output
-
-The CSV is saved without a DataFrame index and contains:
+### Cleaned CSV Columns
 
 | Column | Description |
 | --- | --- |
 | `recommendationid` | Steam review ID |
 | `review` | Original review text |
 | `voted_up` | `True` for recommended, `False` for not recommended |
-| `language` | Original language value from Steam |
+| `language` | Original Steam language value |
 | `timestamp_created` | Review creation time as a Unix timestamp |
 | `timestamp_updated` | Last update time as a Unix timestamp |
 | `playtime_at_review` | Author's playtime at review, in minutes |
 
-The script preserves review text; it does not tokenize it or remove punctuation.
+Use the filename `reviews_<GAME>_<appid>.csv` in `data/processed` for each game
+listed in `FPS_GAME_IDS`, matching the preprocessing notebook's expected input.
 
-## Python Example
+## Prepare Data and Train Models
 
-```python
-from steam_reviews import get_reviews
+1. Run `data_preprocess.ipynb` from top to bottom. It merges the configured games,
+   converts recommendation labels to 0/1, and creates an 80% / 10% / 10% split,
+   stratified by game and label:
 
-reviews = get_reviews(
-    appid=570,
-    num_reviews=500,
-    review_type=0,
-    language="english",
-)
+   - `data/merged/FPS_train.csv`
+   - `data/merged/FPS_val.csv`
+   - `data/merged/FPS_test.csv`
 
-for review in reviews:
-    print(review["review"], review["voted_up"])
-```
+2. Run a model notebook from top to bottom. Adjust its data paths and training
+   parameters as needed. Neural model notebooks update training curves after
+   each completed training and validation epoch. Use validation results to choose
+   settings, then evaluate the selected model on the held-out test set.
 
-Use `review_type=0` for both types, `1` for positive reviews, or `2` for negative
-reviews. Unlike the command-line script, a single function call returns up to
-`num_reviews` reviews in total.
-
-The fetcher uses cursor pagination with up to 100 reviews per request, a
-30-second request timeout, and a one-second delay between pages. Adjust the
-delay with `request_delay`. HTTP failures raise an exception; requests are not
-automatically retried.
+Train one GPU model at a time and shut down unused notebook kernels to free GPU
+memory.
