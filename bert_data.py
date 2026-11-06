@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 
 class BertReviewDataset(Dataset):
     """Store review texts and sentiment labels."""
-    def __int__(self, df):
+    def __init__(self, df):
         self.texts = df["review"].tolist()
         self.labels = df["voted_up"].astype("int64").tolist()
 
