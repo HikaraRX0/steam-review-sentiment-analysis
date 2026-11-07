@@ -8,6 +8,8 @@ reviews excluded from training.
 
 ## Dataset and Evaluation Design
 
+### FPS Training Dataset
+
 The current cleaned FPS dataset contains **20,172 reviews** from seven games:
 
 | Game | Cleaned reviews |
@@ -25,6 +27,33 @@ with `random_state=42`: **16,137 training**, **2,017 validation**, and
 **2,018 internal test** reviews. Thus, the internal test contains the same games
 as training, but different review IDs. TF-IDF features and neural vocabularies
 are fitted or built from training reviews only.
+
+### Mixed Training Dataset
+
+`MIXED_GAME_IDS` configures a separate dataset containing CS2, GTA V Legacy,
+Disco Elysium, Street Fighter 6, Black Myth: Wukong, American Truck Simulator,
+and the first Hades. It does not change `FPS_GAME_IDS`. New training-game
+collection requests 2,000 positive and 2,000 negative English reviews per game;
+CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
+
+The current mixed snapshot contains **20,346 cleaned reviews**:
+
+| Game | Recommended | Not recommended | Total |
+| --- | ---: | ---: | ---: |
+| CS2 | 933 | 1,431 | 2,364 |
+| GTA V Legacy | 878 | 1,457 | 2,335 |
+| Disco Elysium | 1,535 | 1,820 | 3,355 |
+| Street Fighter 6 | 1,380 | 1,726 | 3,106 |
+| Black Myth: Wukong | 1,308 | 1,743 | 3,051 |
+| American Truck Simulator | 1,309 | 1,678 | 2,987 |
+| Hades | 1,419 | 1,729 | 3,148 |
+
+The generated split sizes are **16,275 training**, **2,034 validation**, and
+**2,037 internal test** reviews. These counts are close to, but not identical to,
+the original FPS experiment; comparing full-dataset runs also changes sample
+composition and training size, rather than isolating genre diversity alone.
+
+### External Test Datasets
 
 Eleven complete game datasets are held out for external evaluation:
 
@@ -46,6 +75,10 @@ These external reviews are not split again or included in FPS or mixed training,
 validation, vocabulary construction, or TF-IDF fitting. The trained models
 predict them using their existing text processing. Model settings should be
 chosen on the corresponding training dataset's validation set, rather than on internal or external test scores.
+
+IMDb adds a separate movie-domain test set of **4,000 reviews**: 2,000 positive
+and 2,000 negative, sampled from the official test split. Both training conditions
+use the same external datasets. Preparation instructions are provided below.
 
 Counts describe the current local data snapshot. Collection requests positive
 and negative reviews separately, so these samples do not estimate each game's
@@ -335,6 +368,25 @@ notebook's expected input.
    settings. The test cell evaluates the model currently in memory, which is the
    final epoch's model after running the notebook normally.
 
+### Mixed Training
+
+After collection and cleaning, use the same `data_preprocess.ipynb`. Set:
+
+```python
+GENRE = "MIXED"
+```
+
+Then run the notebook from the top. This writes `data/merged/MIXED_train.csv`, `MIXED_val.csv`, `MIXED_test.csv`, and
+`MIXED_reviews_merged.csv`. New games use an approximately 80% / 10% / 10%
+label-stratified split with seed 42. CS2 retains the exact assignments in the
+existing FPS splits, so no existing CS2 validation/test review enters mixed
+training. The notebook checks split review IDs and rejects overlap between mixed
+games and external test games. Existing FPS split files are not overwritten.
+Run `logistic_reg_mixed.ipynb`, `textcnn_mixed.ipynb`, `bilstm_mixed.ipynb`, or
+`bert_mixed.ipynb` for mixed training. These notebooks set `GENRE = "MIXED"` and
+load the corresponding split files; baseline notebooks default to `"FPS"`.
+Both groups use the same external test files.
+
 Train one GPU model at a time and shut down unused notebook kernels to free GPU
 memory.
 
@@ -398,52 +450,3 @@ All ten model notebooks load its CSV into `external_test_dfs["IMDB"]` and includ
 it in the same external evaluation loop using the existing model and
 vocabulary/tokenizer. Prepare the CSV before running the **External tests**
 section. IMDb is not part of either FPS or mixed training splits.
-
-## Mixed-Game Dataset
-
-`MIXED_GAME_IDS` configures a separate dataset containing CS2, GTA V Legacy,
-Disco Elysium, Street Fighter 6, Black Myth: Wukong, American Truck Simulator,
-and the first Hades. It does not change `FPS_GAME_IDS`. New training-game
-collection requests 2,000 positive and 2,000 negative English reviews per game;
-CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
-
-The current mixed snapshot contains **20,346 cleaned reviews**:
-
-| Game | Recommended | Not recommended | Total |
-| --- | ---: | ---: | ---: |
-| CS2 | 933 | 1,431 | 2,364 |
-| GTA V Legacy | 878 | 1,457 | 2,335 |
-| Disco Elysium | 1,535 | 1,820 | 3,355 |
-| Street Fighter 6 | 1,380 | 1,726 | 3,106 |
-| Black Myth: Wukong | 1,308 | 1,743 | 3,051 |
-| American Truck Simulator | 1,309 | 1,678 | 2,987 |
-| Hades | 1,419 | 1,729 | 3,148 |
-
-The generated split sizes are **16,275 training**, **2,034 validation**, and
-**2,037 internal test** reviews. These counts are close to, but not identical to,
-the original FPS experiment; comparing full-dataset runs also changes sample
-composition and training size, rather than isolating genre diversity alone.
-
-After collection and cleaning, use the same `data_preprocess.ipynb`. Set:
-
-```python
-GENRE = "MIXED"
-```
-
-Then run the notebook from the top. This writes `data/merged/MIXED_train.csv`, `MIXED_val.csv`, `MIXED_test.csv`, and
-`MIXED_reviews_merged.csv`. New games use an approximately 80% / 10% / 10%
-label-stratified split with seed 42. CS2 retains the exact assignments in the
-existing FPS splits, so no existing CS2 validation/test review enters mixed
-training. The notebook checks split review IDs and rejects overlap between mixed
-games and external test games. Existing FPS split files are not overwritten.
-Run `logistic_reg_mixed.ipynb`, `textcnn_mixed.ipynb`, `bilstm_mixed.ipynb`, or
-`bert_mixed.ipynb` for mixed training. These notebooks set `GENRE = "MIXED"` and
-load the corresponding split files; baseline notebooks default to `"FPS"`.
-Both groups use the same external test files.
-
-The external Steam configuration also includes Dota 2, Hollow Knight: Silksong,
-Stardew Valley, Elden Ring, Forza Horizon 6, and Among Us. Each new test-game
-collection requests 1,000 positive and 1,000 negative English reviews and uses
-the same cleaning script as the original external sets. Notebook external-test
-sections load the configured games automatically. Their saved results are
-included in the recorded tables above.
