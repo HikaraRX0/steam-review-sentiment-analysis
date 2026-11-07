@@ -8,16 +8,30 @@ FPS_GAME_IDS = {
     "RAINBOW_SIX_SIEGE": 359550,
 }
 
-RPG_GAME_IDS = {
-    # Add RPG game names and AppIDs here.
+MIXED_GAME_IDS = {
+    "CS2": 730,
+    "GTA5": 271590,
+    "DISCO_ELYSIUM": 632470,
+    "STREET_FIGHTER_6": 1364780,
+    "BLACK_MYTH_WUKONG": 2358720,
+    "AMERICAN_TRUCK_SIMULATOR": 270880,
+    "HADES": 1145360,
 }
 
 # Held-out games for external evaluation; exclude from training and validation.
 EXTERNAL_TEST_GAME_IDS = {
     "WARDOGS": 1867240,
+    "SQUAD": 393380,
     "CYBERPUNK_2077": 1091500,
     "PERSONA_5_ROYAL": 1687950,
+    "BALDURS_GATE_3": 1086940,
+    "DOTA2": 570,
+    "HOLLOW_KNIGHT_SILKSONG": 1030300,
+    "STARDEW_VALLEY": 413150,
+    "ELDEN_RING": 1245620,
+    "FORZA_HORIZON_6": 2483190,
+    "AMONG_US": 945360,
 }
 
 # The collector accepts games from every genre.
-GAME_IDS = {**FPS_GAME_IDS, **RPG_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}
+GAME_IDS = {**FPS_GAME_IDS, **MIXED_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}

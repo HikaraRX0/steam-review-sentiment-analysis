@@ -3,7 +3,8 @@
 Binary sentiment classification for English Steam reviews, using recommendation
 labels: **1 = recommended**, **0 = not recommended**. The project covers review
 collection, data preprocessing, four baseline models, GloVe initialization
-comparisons, and evaluation on games excluded from training.
+comparisons, FPS versus mixed-game training, and evaluation on games and movie
+reviews excluded from training.
 
 ## Dataset and Evaluation Design
 
@@ -25,18 +26,26 @@ with `random_state=42`: **16,137 training**, **2,017 validation**, and
 as training, but different review IDs. TF-IDF features and neural vocabularies
 are fitted or built from training reviews only.
 
-Three complete game datasets are held out for external evaluation:
+Eleven complete game datasets are held out for external evaluation:
 
 | External game | AppID | Recommended | Not recommended | Total | Evaluation purpose |
 | --- | ---: | ---: | ---: | ---: | --- |
 | WARDOGS | 1867240 | 883 | 943 | 1,826 | Transfer to an unseen FPS game |
 | Cyberpunk 2077 | 1091500 | 666 | 892 | 1,558 | Transfer to an action RPG |
 | Persona 5 Royal | 1687950 | 670 | 857 | 1,527 | Transfer to a turn-based JRPG |
+| Squad | 393380 | 611 | 853 | 1,464 | Transfer to an unseen tactical FPS |
+| Baldur's Gate 3 | 1086940 | 729 | 869 | 1,598 | Transfer to another RPG |
+| Dota 2 | 570 | 401 | 566 | 967 | Transfer to a MOBA |
+| Hollow Knight: Silksong | 1030300 | 659 | 857 | 1,516 | Transfer to a metroidvania |
+| Stardew Valley | 413150 | 683 | 762 | 1,445 | Transfer to a farming/life simulation |
+| Elden Ring | 1245620 | 641 | 835 | 1,476 | Transfer to an action RPG |
+| Forza Horizon 6 | 2483190 | 615 | 917 | 1,532 | Transfer to a racing game |
+| Among Us | 945360 | 523 | 778 | 1,301 | Transfer to a social deduction game |
 
-These external reviews are not split again or included in FPS training,
+These external reviews are not split again or included in FPS or mixed training,
 validation, vocabulary construction, or TF-IDF fitting. The trained models
 predict them using their existing text processing. Model settings should be
-chosen on the FPS validation set, rather than on internal or external test scores.
+chosen on the corresponding training dataset's validation set, rather than on internal or external test scores.
 
 Counts describe the current local data snapshot. Collection requests positive
 and negative reviews separately, so these samples do not estimate each game's
@@ -53,7 +62,8 @@ again can return different reviews and counts; data files are not included in Gi
 | BERT | Fine-tune `google-bert/bert-base-uncased` for two labels |
 | GloVe variants | Same TextCNN/BiLSTM settings, with trainable GloVe 6B 100-dimensional embedding initialization |
 
-Neural models use batch size 64, cross-entropy loss, and Adam for 20 epochs.
+Neural models use batch size 64, cross-entropy loss, and Adam. BERT runs for
+**5 epochs**; TextCNN and BiLSTM (including GloVe variants) run for **15 epochs**.
 The learning rate is `1e-3` for TextCNN/BiLSTM and `2e-5` for BERT. TextCNN and
 BiLSTM truncate reviews to 256 tokens; BERT uses a maximum encoded length of 256.
 The notebooks set `torch.manual_seed(42)` and seed training-loader shuffling.
@@ -62,38 +72,95 @@ checkpoint restoration and early stopping are not implemented.
 
 ## Recorded Results
 
-The following values are transcribed from the saved notebook outputs. Each row
-represents a single run, rather than a mean over multiple seeds. Macro-F1 gives
-equal weight to the two classes; accuracy is provided as a supplementary metric.
+The tables below use the external summary outputs currently saved in the four
+FPS baseline notebooks and their four mixed-training counterparts. Each entry
+is a **single training run**, not an average over random seeds. Both training
+conditions use the same external datasets: 11 Steam games and 4,000 IMDb reviews.
+Accuracy is shown as a percentage; Macro-F1 gives equal weight to both classes.
+Internal FPS and mixed test sets contain different games and are not treated as
+matched external comparisons. GloVe notebooks are provided separately and are
+not included in these tables.
 
-### Macro-F1
+### Logistic Regression
 
-| Model | FPS internal test | WARDOGS | Cyberpunk 2077 | Persona 5 Royal |
+| External dataset | FPS accuracy | Mixed accuracy | FPS Macro-F1 | Mixed Macro-F1 |
 | --- | ---: | ---: | ---: | ---: |
-| Logistic Regression | 0.8488 | 0.7770 | 0.8091 | 0.7741 |
-| TextCNN | 0.8367 | 0.7783 | 0.8275 | 0.7784 |
-| TextCNN + GloVe | 0.8432 | 0.7893 | 0.8130 | 0.7817 |
-| BiLSTM | 0.8363 | 0.7751 | 0.7953 | 0.7578 |
-| BiLSTM + GloVe | 0.8266 | 0.7785 | 0.8070 | 0.7669 |
-| BERT | **0.8774** | **0.9058** | **0.8864** | **0.8659** |
+| WARDOGS | 78.64% | 77.88% | 0.7770 | 0.7674 |
+| Squad | 84.02% | 83.81% | 0.8298 | 0.8246 |
+| Cyberpunk 2077 | 81.84% | 86.33% | 0.8091 | 0.8578 |
+| Persona 5 Royal | 78.19% | 86.12% | 0.7741 | 0.8579 |
+| Baldur's Gate 3 | 80.91% | 86.61% | 0.8033 | 0.8630 |
+| Dota 2 | 78.18% | 78.49% | 0.7628 | 0.7737 |
+| Hollow Knight: Silksong | 80.08% | 84.04% | 0.7946 | 0.8350 |
+| Stardew Valley | 82.91% | 86.64% | 0.8274 | 0.8659 |
+| Elden Ring | 81.44% | 83.74% | 0.8070 | 0.8323 |
+| Forza Horizon 6 | 87.14% | 87.34% | 0.8633 | 0.8651 |
+| Among Us | 84.24% | 85.55% | 0.8321 | 0.8474 |
+| IMDb | 67.05% | 68.00% | 0.6464 | 0.6519 |
 
-### Accuracy
+### TextCNN
 
-| Model | FPS internal test | WARDOGS | Cyberpunk 2077 | Persona 5 Royal |
+| External dataset | FPS accuracy | Mixed accuracy | FPS Macro-F1 | Mixed Macro-F1 |
 | --- | ---: | ---: | ---: | ---: |
-| Logistic Regression | 85.33% | 78.64% | 81.84% | 78.19% |
-| TextCNN | 83.99% | 78.48% | 83.44% | 78.19% |
-| TextCNN + GloVe | 84.64% | 79.46% | 82.03% | 78.59% |
-| BiLSTM | 83.89% | 77.88% | 80.04% | 76.03% |
-| BiLSTM + GloVe | 82.85% | 78.15% | 81.26% | 76.88% |
-| BERT | **87.96%** | **90.64%** | **88.96%** | **86.77%** |
+| WARDOGS | 75.96% | 76.12% | 0.7464 | 0.7511 |
+| Squad | 82.79% | 82.51% | 0.8149 | 0.8147 |
+| Cyberpunk 2077 | 83.31% | 85.30% | 0.8242 | 0.8476 |
+| Persona 5 Royal | 78.26% | 83.30% | 0.7755 | 0.8291 |
+| Baldur's Gate 3 | 81.04% | 86.55% | 0.8047 | 0.8631 |
+| Dota 2 | 75.59% | 78.18% | 0.7414 | 0.7750 |
+| Hollow Knight: Silksong | 80.54% | 82.72% | 0.7978 | 0.8223 |
+| Stardew Valley | 80.83% | 84.98% | 0.8061 | 0.8492 |
+| Elden Ring | 82.32% | 82.99% | 0.8163 | 0.8264 |
+| Forza Horizon 6 | 84.99% | 84.27% | 0.8379 | 0.8316 |
+| Among Us | 82.40% | 81.32% | 0.8122 | 0.8074 |
+| IMDb | 59.75% | 61.38% | 0.5343 | 0.5581 |
 
-BERT has the highest recorded scores on all four test sets. GloVe's gains are
-small and vary by model and dataset: it improves all three external BiLSTM
-Macro-F1 scores, but lowers its internal score and TextCNN's Cyberpunk score.
-These single-run differences do not establish statistical significance. Different
-games also have different class proportions and review difficulty, so their
-score ordering alone does not establish an effect of genre distance.
+### BiLSTM
+
+| External dataset | FPS accuracy | Mixed accuracy | FPS Macro-F1 | Mixed Macro-F1 |
+| --- | ---: | ---: | ---: | ---: |
+| WARDOGS | 79.08% | 76.62% | 0.7858 | 0.7569 |
+| Squad | 82.38% | 83.40% | 0.8146 | 0.8254 |
+| Cyberpunk 2077 | 80.87% | 84.66% | 0.8003 | 0.8414 |
+| Persona 5 Royal | 77.08% | 83.56% | 0.7640 | 0.8315 |
+| Baldur's Gate 3 | 78.79% | 85.61% | 0.7833 | 0.8537 |
+| Dota 2 | 77.56% | 77.87% | 0.7649 | 0.7699 |
+| Hollow Knight: Silksong | 77.70% | 82.45% | 0.7718 | 0.8204 |
+| Stardew Valley | 80.35% | 84.84% | 0.8022 | 0.8480 |
+| Elden Ring | 80.15% | 82.59% | 0.7961 | 0.8225 |
+| Forza Horizon 6 | 81.53% | 84.79% | 0.8028 | 0.8407 |
+| Among Us | 81.86% | 82.71% | 0.8104 | 0.8222 |
+| IMDb | 63.08% | 64.98% | 0.6098 | 0.6295 |
+
+### BERT
+
+| External dataset | FPS accuracy | Mixed accuracy | FPS Macro-F1 | Mixed Macro-F1 |
+| --- | ---: | ---: | ---: | ---: |
+| WARDOGS | 90.80% | 90.53% | 0.9077 | 0.9049 |
+| Squad | 89.07% | 90.23% | 0.8854 | 0.8988 |
+| Cyberpunk 2077 | 88.25% | 91.01% | 0.8787 | 0.9082 |
+| Persona 5 Royal | 86.38% | 88.80% | 0.8612 | 0.8869 |
+| Baldur's Gate 3 | 90.05% | 91.11% | 0.8995 | 0.9104 |
+| Dota 2 | 82.73% | 82.11% | 0.8173 | 0.8148 |
+| Hollow Knight: Silksong | 87.73% | 88.46% | 0.8748 | 0.8828 |
+| Stardew Valley | 89.97% | 90.17% | 0.8995 | 0.9017 |
+| Elden Ring | 87.67% | 87.60% | 0.8740 | 0.8746 |
+| Forza Horizon 6 | 90.08% | 90.40% | 0.8957 | 0.8998 |
+| Among Us | 87.09% | 85.86% | 0.8652 | 0.8539 |
+| IMDb | 86.98% | 87.48% | 0.8695 | 0.8747 |
+
+Mixed training improves the recorded Persona 5 Royal accuracy for all four
+models: by 7.93 percentage points for Logistic Regression, 5.04 for TextCNN,
+6.48 for BiLSTM, and 2.42 for BERT. Mixed training also improves several other
+external-game scores, but the gains are not universal. BERT has the highest
+accuracy and Macro-F1 among these four models under both training conditions
+on every listed external dataset, including IMDb.
+
+These results are consistent with broader training coverage helping transfer to
+some unseen games. They do not identify which training game or type of language
+causes an improvement. Differences between small scores can also reflect training
+variation; repeat runs are needed to assess stability. Game-specific class
+proportions and review difficulty also affect comparisons across test datasets.
 
 ### Limitations
 
@@ -115,13 +182,15 @@ score ordering alone does not establish an effect of genre distance.
 | --- | --- |
 | [steam_reviews.py](steam_reviews.py) | Collect positive and negative Steam reviews |
 | [clean_data.py](clean_data.py) | Remove duplicate reviews and keep English text |
-| [data_preprocess.ipynb](data_preprocess.ipynb) | Merge game datasets, inspect data, and create train/validation/test splits |
+| [prepare_imdb_test.py](prepare_imdb_test.py) | Sample a balanced external movie test set from the official IMDb test split |
+| [data_preprocess.ipynb](data_preprocess.ipynb) | Select FPS or MIXED, merge game datasets, inspect data, and create train/validation/test splits |
 | [logistic_reg_baseline.ipynb](logistic_reg_baseline.ipynb) | TF-IDF + Logistic Regression |
 | [textcnn_baseline.ipynb](textcnn_baseline.ipynb) | TextCNN classifier |
 | [bilstm_baseline.ipynb](bilstm_baseline.ipynb) | Bidirectional LSTM classifier |
 | [textcnn_glove.ipynb](textcnn_glove.ipynb) / [bilstm_glove.ipynb](bilstm_glove.ipynb) | GloVe-initialized variants of the neural baselines |
 | `glove_embeddings.py` | Download shared GloVe vectors and initialize training-vocabulary embeddings |
 | [bert_baseline.ipynb](bert_baseline.ipynb) | Fine-tune `google-bert/bert-base-uncased` |
+| [logistic_reg_mixed.ipynb](logistic_reg_mixed.ipynb) / [textcnn_mixed.ipynb](textcnn_mixed.ipynb) / [bilstm_mixed.ipynb](bilstm_mixed.ipynb) / [bert_mixed.ipynb](bert_mixed.ipynb) | Train the four models on MIXED splits and evaluate the same external datasets |
 | `text_data.py` / `bert_data.py` | Dataset and data loader utilities |
 | `train.py` / `utils.py` | Shared training, evaluation, device selection, and plotting |
 
@@ -142,18 +211,20 @@ want to use. For example:
 
 ```python
 FPS_GAME_IDS = {"CS2": 730}
-RPG_GAME_IDS = {}
+MIXED_GAME_IDS = {"CS2": 730, "GTA5": 271590}
 EXTERNAL_TEST_GAME_IDS = {
     "WARDOGS": 1867240,
     "CYBERPUNK_2077": 1091500,
     "PERSONA_5_ROYAL": 1687950,
 }
-GAME_IDS = {**FPS_GAME_IDS, **RPG_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}
+GAME_IDS = {**FPS_GAME_IDS, **MIXED_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}
 ```
 
-`GAME_IDS` is used by the collection script; `FPS_GAME_IDS` selects the games
-merged by the preprocessing notebook. `EXTERNAL_TEST_GAME_IDS` lists held-out
-games for external evaluation and is excluded from FPS training and validation.
+`GAME_IDS` is used by the collection script. Set `GENRE` to `"FPS"` or `"MIXED"`
+in the preprocessing notebook to select `FPS_GAME_IDS` or `MIXED_GAME_IDS`.
+`EXTERNAL_TEST_GAME_IDS` lists held-out
+games for external evaluation and is excluded from both FPS and mixed training
+and validation.
 Datasets and downloaded embeddings are excluded from Git.
 
 ## Collect Reviews
@@ -244,11 +315,13 @@ followed by the first 10 cleaned rows. The review text itself is preserved.
 | `playtime_at_review` | Author's playtime at review, in minutes |
 
 Use the filename `reviews_<GAME>_<appid>.csv` in `data/processed` for each game
-listed in `FPS_GAME_IDS`, matching the preprocessing notebook's expected input.
+listed in the selected training configuration, matching the preprocessing
+notebook's expected input.
 
 ## Prepare Data and Train Models
 
-1. Run `data_preprocess.ipynb` from top to bottom. It merges games in `FPS_GAME_IDS`,
+1. Set `GENRE = "FPS"` in `data_preprocess.ipynb` and run it from top to bottom.
+   It merges games in `FPS_GAME_IDS`,
    converts recommendation labels to 0/1, and creates an 80% / 10% / 10% split,
    stratified by game and label:
 
@@ -287,11 +360,14 @@ retains the existing internal and external test sections.
 
 2. Keep the filename pattern `data/processed/reviews_<GAME>_<appid>.csv`. These
    files are the complete external test sets; do not add the games to
-   `FPS_GAME_IDS` or merge their reviews into the training splits.
+   `FPS_GAME_IDS` or `MIXED_GAME_IDS`, or merge their reviews into the training splits.
 
-3. In each trained notebook's existing kernel, run the bottom **External game
-   tests** section. It loads `review` and `voted_up`, converts `True`/`False` to
-   `1`/`0`, and prints per-game metrics and an `external_results` summary table.
+3. In each trained notebook's existing kernel, run the bottom **External tests**
+   section. It loads `review` and `voted_up`, converts Steam `True`/`False` labels
+   to `1`/`0`, and also loads the prepared IMDb movie test CSV. It prints metrics
+   for each dataset and an `external_results` summary table. The section reloads
+   `config.py` so newly configured games are available without restarting the
+   trained kernel.
 
 Logistic Regression calls the fitted pipeline's `predict()`. TextCNN/BiLSTM
 create test DataLoaders using the training vocabulary; unseen words map to
@@ -299,3 +375,75 @@ create test DataLoaders using the training vocabulary; unseen words map to
 evaluation mode without gradients. No model is fitted on the external reviews.
 The trained model and associated vocabulary/tokenizer must still be available in
 the kernel; the notebooks do not automatically save and reload model checkpoints.
+
+### IMDb Movie Test Set
+
+Run `python prepare_imdb_test.py --per-class 2000 --seed 42` from the project root.
+It downloads the official `test` split from
+[stanfordnlp/imdb](https://huggingface.co/datasets/stanfordnlp/imdb), caches it as
+`data/raw/imdb_test.parquet`, and samples 2,000 negative and 2,000 positive reviews
+without replacement. HTML line-break tags are replaced with spaces and HTML
+entities are decoded. No language-detection filter is applied to this existing
+English benchmark.
+
+The output `data/processed/reviews_IMDB_test.csv` contains `review` and integer
+`voted_up` columns (`0 = negative`, `1 = positive`). Here `voted_up` is a column
+name for compatibility: the labels express movie sentiment, not Steam
+recommendation decisions. A companion `.metadata.json` records the source URL,
+source SHA-256, seed, and selected source row indices. Reading Parquet requires
+`pyarrow`, included in `requirements.txt`.
+
+IMDb is kept separate from `EXTERNAL_TEST_GAME_IDS`, which contains Steam AppIDs.
+All ten model notebooks load its CSV into `external_test_dfs["IMDB"]` and include
+it in the same external evaluation loop using the existing model and
+vocabulary/tokenizer. Prepare the CSV before running the **External tests**
+section. IMDb is not part of either FPS or mixed training splits.
+
+## Mixed-Game Dataset
+
+`MIXED_GAME_IDS` configures a separate dataset containing CS2, GTA V Legacy,
+Disco Elysium, Street Fighter 6, Black Myth: Wukong, American Truck Simulator,
+and the first Hades. It does not change `FPS_GAME_IDS`. New training-game
+collection requests 2,000 positive and 2,000 negative English reviews per game;
+CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
+
+The current mixed snapshot contains **20,346 cleaned reviews**:
+
+| Game | Recommended | Not recommended | Total |
+| --- | ---: | ---: | ---: |
+| CS2 | 933 | 1,431 | 2,364 |
+| GTA V Legacy | 878 | 1,457 | 2,335 |
+| Disco Elysium | 1,535 | 1,820 | 3,355 |
+| Street Fighter 6 | 1,380 | 1,726 | 3,106 |
+| Black Myth: Wukong | 1,308 | 1,743 | 3,051 |
+| American Truck Simulator | 1,309 | 1,678 | 2,987 |
+| Hades | 1,419 | 1,729 | 3,148 |
+
+The generated split sizes are **16,275 training**, **2,034 validation**, and
+**2,037 internal test** reviews. These counts are close to, but not identical to,
+the original FPS experiment; comparing full-dataset runs also changes sample
+composition and training size, rather than isolating genre diversity alone.
+
+After collection and cleaning, use the same `data_preprocess.ipynb`. Set:
+
+```python
+GENRE = "MIXED"
+```
+
+Then run the notebook from the top. This writes `data/merged/MIXED_train.csv`, `MIXED_val.csv`, `MIXED_test.csv`, and
+`MIXED_reviews_merged.csv`. New games use an approximately 80% / 10% / 10%
+label-stratified split with seed 42. CS2 retains the exact assignments in the
+existing FPS splits, so no existing CS2 validation/test review enters mixed
+training. The notebook checks split review IDs and rejects overlap between mixed
+games and external test games. Existing FPS split files are not overwritten.
+Run `logistic_reg_mixed.ipynb`, `textcnn_mixed.ipynb`, `bilstm_mixed.ipynb`, or
+`bert_mixed.ipynb` for mixed training. These notebooks set `GENRE = "MIXED"` and
+load the corresponding split files; baseline notebooks default to `"FPS"`.
+Both groups use the same external test files.
+
+The external Steam configuration also includes Dota 2, Hollow Knight: Silksong,
+Stardew Valley, Elden Ring, Forza Horizon 6, and Among Us. Each new test-game
+collection requests 1,000 positive and 1,000 negative English reviews and uses
+the same cleaning script as the original external sets. Notebook external-test
+sections load the configured games automatically. Their saved results are
+included in the recorded tables above.
