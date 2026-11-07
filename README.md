@@ -32,7 +32,7 @@ are fitted or built from training reviews only.
 
 `MIXED_GAME_IDS` configures a separate dataset containing CS2, GTA V Legacy,
 Disco Elysium, Street Fighter 6, Black Myth: Wukong, American Truck Simulator,
-and the first Hades. It does not change `FPS_GAME_IDS`. New training-game
+and Hades. It does not change `FPS_GAME_IDS`. New training-game
 collection requests 2,000 positive and 2,000 negative English reviews per game;
 CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
 
