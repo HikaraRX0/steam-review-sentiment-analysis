@@ -12,15 +12,15 @@ reviews excluded from training.
 
 The current cleaned FPS dataset contains **20,172 reviews** from seven games:
 
-| Game | Recommended | Not recommended | Total |
-| --- | ---: | ---: | ---: |
-| Counter-Strike 2 | 933 | 1,431 | 2,364 |
-| Call of Duty: Modern Warfare 4 | 1,688 | 1,676 | 3,364 |
-| Apex Legends | 1,102 | 1,489 | 2,591 |
-| Battlefield 6 | 1,279 | 1,778 | 3,057 |
-| Delta Force | 1,187 | 1,693 | 2,880 |
-| Titanfall 2 | 1,548 | 1,779 | 3,327 |
-| Rainbow Six Siege | 1,094 | 1,495 | 2,589 |
+| Game | AppID | Recommended | Not recommended | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Counter-Strike 2 | 730 | 933 | 1,431 | 2,364 |
+| Call of Duty: Modern Warfare 4 | 4435490 | 1,688 | 1,676 | 3,364 |
+| Apex Legends | 1172470 | 1,102 | 1,489 | 2,591 |
+| Battlefield 6 | 2807960 | 1,279 | 1,778 | 3,057 |
+| Delta Force | 2507950 | 1,187 | 1,693 | 2,880 |
+| Titanfall 2 | 1237970 | 1,548 | 1,779 | 3,327 |
+| Rainbow Six Siege | 359550 | 1,094 | 1,495 | 2,589 |
 
 Reviews are split 80% / 10% / 10%, stratified by game and recommendation label,
 with `random_state=42`: **16,137 training**, **2,017 validation**, and
@@ -38,15 +38,15 @@ CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
 
 The current cleaned mixed dataset contains **20,346 cleaned reviews**:
 
-| Game | Recommended | Not recommended | Total |
-| --- | ---: | ---: | ---: |
-| Counter-Strike 2 | 933 | 1,431 | 2,364 |
-| GTA V Legacy | 878 | 1,457 | 2,335 |
-| Disco Elysium | 1,535 | 1,820 | 3,355 |
-| Street Fighter 6 | 1,380 | 1,726 | 3,106 |
-| Black Myth: Wukong | 1,308 | 1,743 | 3,051 |
-| American Truck Simulator | 1,309 | 1,678 | 2,987 |
-| Hades | 1,419 | 1,729 | 3,148 |
+| Game | AppID | Recommended | Not recommended | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Counter-Strike 2 | 730 | 933 | 1,431 | 2,364 |
+| GTA V Legacy | 271590 | 878 | 1,457 | 2,335 |
+| Disco Elysium | 632470 | 1,535 | 1,820 | 3,355 |
+| Street Fighter 6 | 1364780 | 1,380 | 1,726 | 3,106 |
+| Black Myth: Wukong | 2358720 | 1,308 | 1,743 | 3,051 |
+| American Truck Simulator | 270880 | 1,309 | 1,678 | 2,987 |
+| Hades | 1145360 | 1,419 | 1,729 | 3,148 |
 
 The mixed dataset is split into **16,275 training**, **2,034 validation**, and
 **2,037 internal test** reviews. These counts are close to, but not identical to,
