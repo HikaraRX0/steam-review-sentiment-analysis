@@ -198,6 +198,19 @@ proportions and review difficulty also affect comparisons across test datasets.
 
 ### GloVe Initialization Analysis
 
+The table below compares the latest saved FPS-trained baseline and GloVe runs.
+The external-game mean gives equal weight to each of the 11 Steam games;
+IMDb is reported separately and is excluded from this mean.
+
+| Model | Test dataset | Baseline accuracy | GloVe accuracy | Baseline Macro-F1 | GloVe Macro-F1 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| TextCNN | FPS internal test | 84.19% | 84.99% | 0.8369 | 0.8455 |
+| TextCNN | External games (mean) | 80.73% | 81.70% | 0.7979 | 0.8107 |
+| TextCNN | IMDb | 59.75% | 72.12% | 0.5343 | 0.7154 |
+| BiLSTM | FPS internal test | 83.65% | 83.05% | 0.8318 | 0.8269 |
+| BiLSTM | External games (mean) | 79.76% | 79.91% | 0.7906 | 0.7925 |
+| BiLSTM | IMDb | 63.08% | 68.13% | 0.6098 | 0.6731 |
+
 The latest saved runs compare random embedding initialization with trainable
 GloVe initialization on the same FPS dataset. TextCNN shows a small improvement
 on the internal test, while BiLSTM shows a small decline. Across external Steam
