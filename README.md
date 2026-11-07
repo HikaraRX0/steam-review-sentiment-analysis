@@ -12,15 +12,15 @@ reviews excluded from training.
 
 The current cleaned FPS dataset contains **20,172 reviews** from seven games:
 
-| Game | Cleaned reviews |
-| --- | ---: |
-| Counter-Strike 2 | 2,364 |
-| Call of Duty: Modern Warfare 4 | 3,364 |
-| Apex Legends | 2,591 |
-| Battlefield 6 | 3,057 |
-| Delta Force | 2,880 |
-| Titanfall 2 | 3,327 |
-| Rainbow Six Siege | 2,589 |
+| Game | Recommended | Not recommended | Total |
+| --- | ---: | ---: | ---: |
+| Counter-Strike 2 | 933 | 1,431 | 2,364 |
+| Call of Duty: Modern Warfare 4 | 1,688 | 1,676 | 3,364 |
+| Apex Legends | 1,102 | 1,489 | 2,591 |
+| Battlefield 6 | 1,279 | 1,778 | 3,057 |
+| Delta Force | 1,187 | 1,693 | 2,880 |
+| Titanfall 2 | 1,548 | 1,779 | 3,327 |
+| Rainbow Six Siege | 1,094 | 1,495 | 2,589 |
 
 Reviews are split 80% / 10% / 10%, stratified by game and recommendation label,
 with `random_state=42`: **16,137 training**, **2,017 validation**, and
