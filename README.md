@@ -297,8 +297,10 @@ prepare them using the steps below. No hosted dataset download is provided yet.
 
 ## Collect Reviews
 
-Run commands from the project root. Create `data/raw`, `data/processed`, and
-`data/merged` before saving files.
+Run commands from the project root. The collector creates output directories
+automatically; `--clean` also creates the cleaned-data directory. Preprocessing
+creates `data/merged`. When calling `clean_data.py` directly, create its output
+directory first.
 
 Use a game name from `GAME_IDS` in `config.py`:
 
@@ -308,10 +310,15 @@ python steam_reviews.py CS2 --num-reviews 500 --language english --output data/r
 
 | Argument | Description | Default |
 | --- | --- | --- |
-| `game` | Game name from `GAME_IDS`, converted to uppercase | Required |
-| `--num-reviews` | Maximum reviews to fetch **per review type** | `100` |
+| `game` | Single game name from `GAME_IDS`, converted to uppercase | Required unless `--group` is used |
+| `--group` | One or more groups: `FPS`, `MIXED`, `EXTERNAL`, `ALL` | Alternative to `game` |
+| `--num-reviews` | Positive integer; maximum reviews **per review type, per game** | Required; no default |
 | `--language` | Steam language code, or `all` for all languages | `english` |
-| `--output` | Output JSON path | `reviews_<GAME>_<appid>_raw.json` |
+| `--output` | Single-game output JSON path | `reviews_<GAME>_<appid>_raw.json` |
+| `--output-dir` | Batch output directory | `data/raw` |
+| `--clean` | Run the existing cleaning script for each selected game | Disabled |
+| `--processed-dir` | Cleaned CSV directory when using `--clean` | `data/processed` |
+| `--overwrite` | Replace existing raw and cleaned outputs | Disabled; existing files are skipped |
 
 The script fetches positive and negative reviews separately, so this example
 requests up to **1,000 reviews total**. Fewer may be returned if not enough reviews
@@ -321,8 +328,48 @@ The output is a JSON list of review objects, including review text, `voted_up`,
 language, timestamps, and author information. Positive reviews are saved first,
 followed by negative reviews. The terminal reports the counts and output path.
 
-If `--output` is omitted, the JSON is saved in the current directory. The output
-directory must already exist; an existing output file is overwritten.
+In single-game mode, omitting `--output` saves the JSON in the current directory.
+Batch mode writes one JSON per game under `--output-dir`. Existing files are
+skipped by default in both modes; use `--overwrite` to replace them.
+
+### Batch Collection and Cleaning
+
+To prepare all configured games, explicitly choose a per-class collection limit.
+For example, the following commands request up to 2,000 recommended and 2,000
+not-recommended reviews per training game, and up to 1,000 of each per external
+game. These are collection targets, not guaranteed cleaned sample counts.
+
+```sh
+python steam_reviews.py --group FPS MIXED --num-reviews 2000 --clean
+python steam_reviews.py --group EXTERNAL --num-reviews 1000 --clean
+```
+
+Groups come from `config.py`. Shared AppIDs such as CS2 are processed once per
+invocation. `--group ALL` selects every configured game, applying the same
+explicit `--num-reviews` limit to all games. A game argument and `--group` cannot
+be combined; `--output` is only for single-game mode.
+
+If a raw file already exists, collection is skipped. With `--clean`, an existing
+raw file is still cleaned if its CSV is missing; an existing CSV is skipped.
+Changing the requested count does not refresh existing files. Use `--overwrite`
+to collect again and replace the corresponding CSV when `--clean` is enabled.
+Keep the same CS2 files when preparing both training conditions.
+
+A failed game is reported and remaining games continue. The command ends with a
+summary and exits with a nonzero status if any game failed. Rerun the command to
+retry failures while skipping completed files. Existing files are skipped based
+on their presence, not validated against the current language or count settings.
+
+After collection, run `data_preprocess.ipynb` first with `GENRE = "FPS"`, then
+with `GENRE = "MIXED"`. Prepare IMDb using the command below before evaluation.
+No agent is required to run this workflow.
+
+These steps rebuild the collection and processing workflow, not the historical
+Steam snapshot: the collector requests the newest reviews, which change over
+time. A fixed split seed only reproduces assignments for the same input data.
+Counts and model scores may therefore differ from the recorded results. IMDb
+reconstruction also depends on using the same upstream source version; its
+preparation script records a source hash and sampled row indices.
 
 ### Python API
 
@@ -334,7 +381,7 @@ for review in reviews:
     print(review["review"], review["voted_up"])
 ```
 
-`review_type=0` includes both types, `1` positive, and `2` negative. A single
+`review_type=0` includes both types, `1` positive, and `2` negative. `num_reviews` is required in the Python API too. A single
 function call returns up to `num_reviews` reviews in total, unlike the CLI's
 separate requests per type. The function returns data without saving a file.
 
