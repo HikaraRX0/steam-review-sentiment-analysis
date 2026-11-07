@@ -112,8 +112,8 @@ is a **single training run**, not an average over random seeds. Both training
 conditions use the same external datasets: 11 Steam games and 4,000 IMDb reviews.
 Accuracy is shown as a percentage; Macro-F1 gives equal weight to both classes.
 Internal FPS and mixed test sets contain different games and are not treated as
-matched external comparisons. GloVe notebooks are provided separately and are
-not included in these tables.
+matched external comparisons. The first four tables compare FPS and mixed
+training; a separate GloVe comparison follows.
 
 ### Logistic Regression
 
@@ -195,6 +195,34 @@ some unseen games. They do not identify which training game or type of language
 causes an improvement. Small score differences can also reflect training
 variation; repeat runs are needed to assess stability. Game-specific class
 proportions and review difficulty also affect comparisons across test datasets.
+
+### GloVe Initialization Comparison
+
+The following results compare random embedding initialization with trainable
+GloVe 6B 100-dimensional initialization. Both variants use FPS training data,
+the same model architecture, and 15 training epochs. GloVe covers **88.0%** of
+the training vocabulary (10,214 of 11,613 words); unmatched words retain their
+random initialization. Each configuration represents a single training run.
+
+The external-game mean gives equal weight to each of the 11 Steam games.
+IMDb is reported separately and is excluded from this mean.
+
+| Model | Test dataset | Baseline accuracy | GloVe accuracy | Baseline Macro-F1 | GloVe Macro-F1 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| TextCNN | FPS internal test | 84.19% | 84.54% | 0.8369 | 0.8403 |
+| TextCNN | External games (mean) | 80.73% | 81.64% | 0.7979 | 0.8093 |
+| TextCNN | IMDb | 59.75% | 72.38% | 0.5343 | 0.7179 |
+| BiLSTM | FPS internal test | 83.65% | 83.05% | 0.8318 | 0.8269 |
+| BiLSTM | External games (mean) | 79.76% | 79.91% | 0.7906 | 0.7925 |
+| BiLSTM | IMDb | 63.08% | 68.13% | 0.6098 | 0.6731 |
+
+GloVe produces limited overall gains on Steam reviews, with improvements and
+regressions across individual games. Mean external-game accuracy increases by
+0.91 percentage points for TextCNN and 0.15 for BiLSTM. The IMDb gains are larger:
+12.63 percentage points for TextCNN and 5.05 for BiLSTM, accompanied by higher
+Macro-F1. These runs suggest that GloVe initialization can help transfer to movie
+reviews, but repeated runs are needed to assess stability and statistical tests
+are needed before claiming significance.
 
 ### Limitations
 
