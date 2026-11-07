@@ -104,6 +104,26 @@ The notebooks set `torch.manual_seed(42)` and seed training-loader shuffling.
 The current code evaluates **the final epoch's weights**; automatic best-validation
 checkpoint restoration and early stopping are not implemented.
 
+### Hardware and Software Environment
+
+| Component | Configuration |
+| --- | --- |
+| CPU | AMD Ryzen 9 9900X, 12 cores |
+| System RAM | 64 GB |
+| GPU | NVIDIA GeForce RTX 5070 Ti |
+| VRAM | 16 GB |
+| OS | Windows 11, build 26200 |
+| Python | 3.14.10 |
+| PyTorch | 2.15.0+cu134 |
+| PyTorch CUDA build | 13.4 |
+| NVIDIA driver | 621.01 |
+| Transformers | 5.22.1 |
+
+With batch size 64 and sequence length 256, a BERT notebook kernel was observed
+to occupy approximately **14 GB of VRAM**. Run one GPU training kernel at a time.
+For this training setup, we recommend at least 32 GB of system RAM and a GPU
+with 16 GB of VRAM. Minimum requirements have not been tested.
+
 ## Recorded Results
 
 The tables below use the external summary outputs currently saved in the four
