@@ -2,7 +2,112 @@
 
 Binary sentiment classification for English Steam reviews, using recommendation
 labels: **1 = recommended**, **0 = not recommended**. The project covers review
-collection, data preprocessing, and comparison of four baseline models.
+collection, data preprocessing, four baseline models, GloVe initialization
+comparisons, and evaluation on games excluded from training.
+
+## Dataset and Evaluation Design
+
+The current cleaned FPS dataset contains **20,172 reviews** from seven games:
+
+| Game | Cleaned reviews |
+| --- | ---: |
+| Counter-Strike 2 | 2,364 |
+| Call of Duty: Modern Warfare 4 | 3,364 |
+| Apex Legends | 2,591 |
+| Battlefield 6 | 3,057 |
+| Delta Force | 2,880 |
+| Titanfall 2 | 3,327 |
+| Rainbow Six Siege | 2,589 |
+
+Reviews are split 80% / 10% / 10%, stratified by game and recommendation label,
+with `random_state=42`: **16,137 training**, **2,017 validation**, and
+**2,018 internal test** reviews. Thus, the internal test contains the same games
+as training, but different review IDs. TF-IDF features and neural vocabularies
+are fitted or built from training reviews only.
+
+Three complete game datasets are held out for external evaluation:
+
+| External game | AppID | Recommended | Not recommended | Total | Evaluation purpose |
+| --- | ---: | ---: | ---: | ---: | --- |
+| WARDOGS | 1867240 | 883 | 943 | 1,826 | Transfer to an unseen FPS game |
+| Cyberpunk 2077 | 1091500 | 666 | 892 | 1,558 | Transfer to an action RPG |
+| Persona 5 Royal | 1687950 | 670 | 857 | 1,527 | Transfer to a turn-based JRPG |
+
+These external reviews are not split again or included in FPS training,
+validation, vocabulary construction, or TF-IDF fitting. The trained models
+predict them using their existing text processing. Model settings should be
+chosen on the FPS validation set, rather than on internal or external test scores.
+
+Counts describe the current local data snapshot. Collection requests positive
+and negative reviews separately, so these samples do not estimate each game's
+natural recommendation rate. Cleaning changes the class proportions. Fetching
+again can return different reviews and counts; data files are not included in Git.
+
+## Experiment Settings
+
+| Model | Current configuration |
+| --- | --- |
+| Logistic Regression | TF-IDF word unigrams/bigrams, `min_df=2`; `C=1.2`, `max_iter=1000` |
+| TextCNN | 100-dimensional embeddings; kernels 3/4/5 with 100 channels each; dropout 0.5 before classification |
+| BiLSTM | 100-dimensional embeddings; one bidirectional layer, hidden size 100; dropout 0.5 before classification |
+| BERT | Fine-tune `google-bert/bert-base-uncased` for two labels |
+| GloVe variants | Same TextCNN/BiLSTM settings, with trainable GloVe 6B 100-dimensional embedding initialization |
+
+Neural models use batch size 64, cross-entropy loss, and Adam for 20 epochs.
+The learning rate is `1e-3` for TextCNN/BiLSTM and `2e-5` for BERT. TextCNN and
+BiLSTM truncate reviews to 256 tokens; BERT uses a maximum encoded length of 256.
+The notebooks set `torch.manual_seed(42)` and seed training-loader shuffling.
+The current code evaluates **the final epoch's weights**; automatic best-validation
+checkpoint restoration and early stopping are not implemented.
+
+## Recorded Results
+
+The following values are transcribed from the saved notebook outputs. Each row
+represents a single run, rather than a mean over multiple seeds. Macro-F1 gives
+equal weight to the two classes; accuracy is provided as a supplementary metric.
+
+### Macro-F1
+
+| Model | FPS internal test | WARDOGS | Cyberpunk 2077 | Persona 5 Royal |
+| --- | ---: | ---: | ---: | ---: |
+| Logistic Regression | 0.8488 | 0.7770 | 0.8091 | 0.7741 |
+| TextCNN | 0.8367 | 0.7783 | 0.8275 | 0.7784 |
+| TextCNN + GloVe | 0.8432 | 0.7893 | 0.8130 | 0.7817 |
+| BiLSTM | 0.8363 | 0.7751 | 0.7953 | 0.7578 |
+| BiLSTM + GloVe | 0.8266 | 0.7785 | 0.8070 | 0.7669 |
+| BERT | **0.8774** | **0.9058** | **0.8864** | **0.8659** |
+
+### Accuracy
+
+| Model | FPS internal test | WARDOGS | Cyberpunk 2077 | Persona 5 Royal |
+| --- | ---: | ---: | ---: | ---: |
+| Logistic Regression | 85.33% | 78.64% | 81.84% | 78.19% |
+| TextCNN | 83.99% | 78.48% | 83.44% | 78.19% |
+| TextCNN + GloVe | 84.64% | 79.46% | 82.03% | 78.59% |
+| BiLSTM | 83.89% | 77.88% | 80.04% | 76.03% |
+| BiLSTM + GloVe | 82.85% | 78.15% | 81.26% | 76.88% |
+| BERT | **87.96%** | **90.64%** | **88.96%** | **86.77%** |
+
+BERT has the highest recorded scores on all four test sets. GloVe's gains are
+small and vary by model and dataset: it improves all three external BiLSTM
+Macro-F1 scores, but lowers its internal score and TextCNN's Cyberpunk score.
+These single-run differences do not establish statistical significance. Different
+games also have different class proportions and review difficulty, so their
+score ordering alone does not establish an effect of genre distance.
+
+### Limitations
+
+- Labels reflect Steam recommendation decisions, which can differ from the
+  sentiment of individual sentences in a review.
+- Deduplication uses review IDs, not text. Identical text from distinct reviews
+  is retained and can occur across splits; this can make internal evaluation
+  more optimistic for repeated expressions.
+- Language detection can discard valid short English reviews. External class
+  counts are unequal after cleaning.
+- Neural training curves show substantial train/validation gaps. Results use
+  final-epoch weights and have not been averaged over multiple seeds.
+- Each external genre is represented by few games. Generalization conclusions
+  apply to these sampled games and reviews, rather than to every FPS or RPG.
 
 ## Project Files
 
@@ -36,8 +141,14 @@ Edit `config.py` in the project root with the game names and Steam AppIDs you
 want to use. For example:
 
 ```python
-GAME_IDS = {"CS2": 730}
-FPS_GAME_IDS = GAME_IDS.copy()
+FPS_GAME_IDS = {"CS2": 730}
+RPG_GAME_IDS = {}
+EXTERNAL_TEST_GAME_IDS = {
+    "WARDOGS": 1867240,
+    "CYBERPUNK_2077": 1091500,
+    "PERSONA_5_ROYAL": 1687950,
+}
+GAME_IDS = {**FPS_GAME_IDS, **RPG_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}
 ```
 
 `GAME_IDS` is used by the collection script; `FPS_GAME_IDS` selects the games
@@ -137,7 +248,7 @@ listed in `FPS_GAME_IDS`, matching the preprocessing notebook's expected input.
 
 ## Prepare Data and Train Models
 
-1. Run `data_preprocess.ipynb` from top to bottom. It merges the configured games,
+1. Run `data_preprocess.ipynb` from top to bottom. It merges games in `FPS_GAME_IDS`,
    converts recommendation labels to 0/1, and creates an 80% / 10% / 10% split,
    stratified by game and label:
 
@@ -148,7 +259,8 @@ listed in `FPS_GAME_IDS`, matching the preprocessing notebook's expected input.
 2. Run a model notebook from top to bottom. Adjust its data paths and training
    parameters as needed. Neural model notebooks update training curves after
    each completed training and validation epoch. Use validation results to choose
-   settings, then evaluate the selected model on the held-out test set.
+   settings. The test cell evaluates the model currently in memory, which is the
+   final epoch's model after running the notebook normally.
 
 Train one GPU model at a time and shut down unused notebook kernels to free GPU
 memory.
@@ -162,3 +274,28 @@ fine-tuned by default (`freeze_embeddings = False`). Unmatched words keep their
 random initialization, padding stays zero, and vocabulary is still built from
 FPS training data only. Each notebook reports GloVe vocabulary coverage and
 retains the existing internal and external test sections.
+
+## Run External Tests
+
+1. Collect and clean each game in `EXTERNAL_TEST_GAME_IDS` using the same scripts.
+   For example:
+
+   ```sh
+   python steam_reviews.py WARDOGS --num-reviews 1000 --language english --output data/raw/reviews_WARDOGS_1867240_raw.json
+   python clean_data.py data/raw/reviews_WARDOGS_1867240_raw.json data/processed/reviews_WARDOGS_1867240.csv
+   ```
+
+2. Keep the filename pattern `data/processed/reviews_<GAME>_<appid>.csv`. These
+   files are the complete external test sets; do not add the games to
+   `FPS_GAME_IDS` or merge their reviews into the training splits.
+
+3. In each trained notebook's existing kernel, run the bottom **External game
+   tests** section. It loads `review` and `voted_up`, converts `True`/`False` to
+   `1`/`0`, and prints per-game metrics and an `external_results` summary table.
+
+Logistic Regression calls the fitted pipeline's `predict()`. TextCNN/BiLSTM
+create test DataLoaders using the training vocabulary; unseen words map to
+`<UNK>`. BERT reuses its tokenizer and collate function. Neural evaluation uses
+evaluation mode without gradients. No model is fitted on the external reviews.
+The trained model and associated vocabulary/tokenizer must still be available in
+the kernel; the notebooks do not automatically save and reload model checkpoints.
