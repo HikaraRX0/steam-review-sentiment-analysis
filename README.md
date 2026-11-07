@@ -14,6 +14,8 @@ collection, data preprocessing, and comparison of four baseline models.
 | [logistic_reg_baseline.ipynb](logistic_reg_baseline.ipynb) | TF-IDF + Logistic Regression |
 | [textcnn_baseline.ipynb](textcnn_baseline.ipynb) | TextCNN classifier |
 | [bilstm_baseline.ipynb](bilstm_baseline.ipynb) | Bidirectional LSTM classifier |
+| [textcnn_glove.ipynb](textcnn_glove.ipynb) / [bilstm_glove.ipynb](bilstm_glove.ipynb) | GloVe-initialized variants of the neural baselines |
+| `glove_embeddings.py` | Download shared GloVe vectors and initialize training-vocabulary embeddings |
 | [bert_baseline.ipynb](bert_baseline.ipynb) | Fine-tune `google-bert/bert-base-uncased` |
 | `text_data.py` / `bert_data.py` | Dataset and data loader utilities |
 | `train.py` / `utils.py` | Shared training, evaluation, device selection, and plotting |
@@ -30,8 +32,8 @@ Select the same environment as the notebook kernel. For GPU training, use a
 PyTorch installation compatible with your CUDA setup. BERT downloads its pretrained
 model and tokenizer on the first run.
 
-Create a local `config.py` in the project root with the game names and Steam
-AppIDs you want to use. For example:
+Edit `config.py` in the project root with the game names and Steam AppIDs you
+want to use. For example:
 
 ```python
 GAME_IDS = {"CS2": 730}
@@ -39,8 +41,9 @@ FPS_GAME_IDS = GAME_IDS.copy()
 ```
 
 `GAME_IDS` is used by the collection script; `FPS_GAME_IDS` selects the games
-merged by the preprocessing notebook. Configuration and datasets are excluded
-from Git.
+merged by the preprocessing notebook. `EXTERNAL_TEST_GAME_IDS` lists held-out
+games for external evaluation and is excluded from FPS training and validation.
+Datasets and downloaded embeddings are excluded from Git.
 
 ## Collect Reviews
 
@@ -149,3 +152,13 @@ listed in `FPS_GAME_IDS`, matching the preprocessing notebook's expected input.
 
 Train one GPU model at a time and shut down unused notebook kernels to free GPU
 memory.
+
+The GloVe notebooks preserve the baseline architecture and training settings, but
+initialize matching embedding rows with Stanford GloVe 6B 100-dimensional vectors.
+Run them from the top in separate kernels and train fresh models. The first run
+downloads the official approximately 862 MB archive to `data/embeddings` and
+extracts `glove.6B.100d.txt`; both notebooks reuse these files. Embeddings are
+fine-tuned by default (`freeze_embeddings = False`). Unmatched words keep their
+random initialization, padding stays zero, and vocabulary is still built from
+FPS training data only. Each notebook reports GloVe vocabulary coverage and
+retains the existing internal and external test sections.
