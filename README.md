@@ -36,11 +36,11 @@ and Hades. It does not change `FPS_GAME_IDS`. New training-game
 collection requests 2,000 positive and 2,000 negative English reviews per game;
 CS2 reuses its existing processed reviews. Cleaned class counts may be lower.
 
-The current mixed snapshot contains **20,346 cleaned reviews**:
+The current cleaned mixed dataset contains **20,346 cleaned reviews**:
 
 | Game | Recommended | Not recommended | Total |
 | --- | ---: | ---: | ---: |
-| CS2 | 933 | 1,431 | 2,364 |
+| Counter-Strike 2 | 933 | 1,431 | 2,364 |
 | GTA V Legacy | 878 | 1,457 | 2,335 |
 | Disco Elysium | 1,535 | 1,820 | 3,355 |
 | Street Fighter 6 | 1,380 | 1,726 | 3,106 |
@@ -48,7 +48,7 @@ The current mixed snapshot contains **20,346 cleaned reviews**:
 | American Truck Simulator | 1,309 | 1,678 | 2,987 |
 | Hades | 1,419 | 1,729 | 3,148 |
 
-The generated split sizes are **16,275 training**, **2,034 validation**, and
+The mixed dataset is split into **16,275 training**, **2,034 validation**, and
 **2,037 internal test** reviews. These counts are close to, but not identical to,
 the original FPS experiment; comparing full-dataset runs also changes sample
 composition and training size, rather than isolating genre diversity alone.
@@ -60,9 +60,9 @@ Eleven complete game datasets are held out for external evaluation:
 | External game | AppID | Recommended | Not recommended | Total | Evaluation purpose |
 | --- | ---: | ---: | ---: | ---: | --- |
 | WARDOGS | 1867240 | 883 | 943 | 1,826 | Transfer to an unseen FPS game |
+| Squad | 393380 | 611 | 853 | 1,464 | Transfer to an unseen tactical FPS |
 | Cyberpunk 2077 | 1091500 | 666 | 892 | 1,558 | Transfer to an action RPG |
 | Persona 5 Royal | 1687950 | 670 | 857 | 1,527 | Transfer to a turn-based JRPG |
-| Squad | 393380 | 611 | 853 | 1,464 | Transfer to an unseen tactical FPS |
 | Baldur's Gate 3 | 1086940 | 729 | 869 | 1,598 | Transfer to another RPG |
 | Dota 2 | 570 | 401 | 566 | 967 | Transfer to a MOBA |
 | Hollow Knight: Silksong | 1030300 | 659 | 857 | 1,516 | Transfer to a metroidvania |
@@ -74,7 +74,8 @@ Eleven complete game datasets are held out for external evaluation:
 These external reviews are not split again or included in FPS or mixed training,
 validation, vocabulary construction, or TF-IDF fitting. The trained models
 predict them using their existing text processing. Model settings should be
-chosen on the corresponding training dataset's validation set, rather than on internal or external test scores.
+chosen on the corresponding training dataset's validation set. Internal and
+external test sets are reserved for evaluation.
 
 IMDb adds a separate movie-domain test set of **4,000 reviews**: 2,000 positive
 and 2,000 negative, sampled from the official test split. Both training conditions
@@ -191,7 +192,7 @@ on every listed external dataset, including IMDb.
 
 These results are consistent with broader training coverage helping transfer to
 some unseen games. They do not identify which training game or type of language
-causes an improvement. Differences between small scores can also reflect training
+causes an improvement. Small score differences can also reflect training
 variation; repeat runs are needed to assess stability. Game-specific class
 proportions and review difficulty also affect comparisons across test datasets.
 
@@ -213,19 +214,24 @@ proportions and review difficulty also affect comparisons across test datasets.
 
 | File | Purpose |
 | --- | --- |
-| [steam_reviews.py](steam_reviews.py) | Collect positive and negative Steam reviews |
-| [clean_data.py](clean_data.py) | Remove duplicate reviews and keep English text |
-| [prepare_imdb_test.py](prepare_imdb_test.py) | Sample a balanced external movie test set from the official IMDb test split |
-| [data_preprocess.ipynb](data_preprocess.ipynb) | Select FPS or MIXED, merge game datasets, inspect data, and create train/validation/test splits |
-| [logistic_reg_baseline.ipynb](logistic_reg_baseline.ipynb) | TF-IDF + Logistic Regression |
-| [textcnn_baseline.ipynb](textcnn_baseline.ipynb) | TextCNN classifier |
-| [bilstm_baseline.ipynb](bilstm_baseline.ipynb) | Bidirectional LSTM classifier |
-| [textcnn_glove.ipynb](textcnn_glove.ipynb) / [bilstm_glove.ipynb](bilstm_glove.ipynb) | GloVe-initialized variants of the neural baselines |
-| `glove_embeddings.py` | Download shared GloVe vectors and initialize training-vocabulary embeddings |
-| [bert_baseline.ipynb](bert_baseline.ipynb) | Fine-tune `google-bert/bert-base-uncased` |
-| [logistic_reg_mixed.ipynb](logistic_reg_mixed.ipynb) / [textcnn_mixed.ipynb](textcnn_mixed.ipynb) / [bilstm_mixed.ipynb](bilstm_mixed.ipynb) / [bert_mixed.ipynb](bert_mixed.ipynb) | Train the four models on MIXED splits and evaluate the same external datasets |
-| `text_data.py` / `bert_data.py` | Dataset and data loader utilities |
-| `train.py` / `utils.py` | Shared training, evaluation, device selection, and plotting |
+| [config.py](config.py) | Define FPS, mixed, and external game groups |
+| [steam_reviews.py](steam_reviews.py) | Collect recommended and not-recommended Steam reviews |
+| [clean_data.py](clean_data.py) | Deduplicate by review ID and keep English reviews |
+| [prepare_imdb_test.py](prepare_imdb_test.py) | Sample a balanced test set from the official IMDb test split |
+| [data_preprocess.ipynb](data_preprocess.ipynb) | Prepare FPS or mixed train, validation, and internal test splits |
+| [glove_embeddings.py](glove_embeddings.py) | Download GloVe vectors and initialize training-vocabulary embeddings |
+| [text_data.py](text_data.py) / [bert_data.py](bert_data.py) | Prepare datasets and data loaders |
+| [train.py](train.py) / [utils.py](utils.py) | Train, evaluate, select devices, and plot training curves |
+
+| Model | FPS notebook | Mixed notebook |
+| --- | --- | --- |
+| Logistic Regression | [logistic_reg_baseline.ipynb](logistic_reg_baseline.ipynb) | [logistic_reg_mixed.ipynb](logistic_reg_mixed.ipynb) |
+| TextCNN | [textcnn_baseline.ipynb](textcnn_baseline.ipynb) | [textcnn_mixed.ipynb](textcnn_mixed.ipynb) |
+| BiLSTM | [bilstm_baseline.ipynb](bilstm_baseline.ipynb) | [bilstm_mixed.ipynb](bilstm_mixed.ipynb) |
+| BERT | [bert_baseline.ipynb](bert_baseline.ipynb) | [bert_mixed.ipynb](bert_mixed.ipynb) |
+
+GloVe initialization comparisons use [textcnn_glove.ipynb](textcnn_glove.ipynb)
+and [bilstm_glove.ipynb](bilstm_glove.ipynb), both trained on FPS splits.
 
 ## Setup
 
@@ -255,10 +261,9 @@ GAME_IDS = {**FPS_GAME_IDS, **MIXED_GAME_IDS, **EXTERNAL_TEST_GAME_IDS}
 
 `GAME_IDS` is used by the collection script. Set `GENRE` to `"FPS"` or `"MIXED"`
 in the preprocessing notebook to select `FPS_GAME_IDS` or `MIXED_GAME_IDS`.
-`EXTERNAL_TEST_GAME_IDS` lists held-out
-games for external evaluation and is excluded from both FPS and mixed training
-and validation.
-Datasets and downloaded embeddings are excluded from Git.
+`EXTERNAL_TEST_GAME_IDS` defines held-out games excluded from both FPS and mixed
+training and validation. Datasets and downloaded embeddings are excluded from Git;
+prepare them using the steps below. No hosted dataset download is provided yet.
 
 ## Collect Reviews
 
@@ -289,7 +294,7 @@ followed by negative reviews. The terminal reports the counts and output path.
 If `--output` is omitted, the JSON is saved in the current directory. The output
 directory must already exist; an existing output file is overwritten.
 
-### Use from Python
+### Python API
 
 ```python
 from steam_reviews import get_reviews
@@ -353,42 +358,52 @@ notebook's expected input.
 
 ## Prepare Data and Train Models
 
+### FPS Training
+
 1. Set `GENRE = "FPS"` in `data_preprocess.ipynb` and run it from top to bottom.
-   It merges games in `FPS_GAME_IDS`,
-   converts recommendation labels to 0/1, and creates an 80% / 10% / 10% split,
-   stratified by game and label:
+   It merges the games in `FPS_GAME_IDS`, converts recommendation labels to 0/1,
+   and creates an 80% / 10% / 10% split stratified by game and label.
+   The output files are:
 
    - `data/merged/FPS_train.csv`
    - `data/merged/FPS_val.csv`
    - `data/merged/FPS_test.csv`
 
-2. Run a model notebook from top to bottom. Adjust its data paths and training
-   parameters as needed. Neural model notebooks update training curves after
-   each completed training and validation epoch. Use validation results to choose
-   settings. The test cell evaluates the model currently in memory, which is the
-   final epoch's model after running the notebook normally.
+2. Run the corresponding FPS notebook from the model table above. Baseline
+   notebooks set `GENRE = "FPS"` and load these split files.
 
 ### Mixed Training
 
-After collection and cleaning, use the same `data_preprocess.ipynb`. Set:
+1. Set `GENRE = "MIXED"` in the same `data_preprocess.ipynb` and run it from top
+   to bottom. It merges the games in `MIXED_GAME_IDS` and creates the following
+   split files, alongside `data/merged/MIXED_reviews_merged.csv`:
 
-```python
-GENRE = "MIXED"
-```
+   - `data/merged/MIXED_train.csv`
+   - `data/merged/MIXED_val.csv`
+   - `data/merged/MIXED_test.csv`
 
-Then run the notebook from the top. This writes `data/merged/MIXED_train.csv`, `MIXED_val.csv`, `MIXED_test.csv`, and
-`MIXED_reviews_merged.csv`. New games use an approximately 80% / 10% / 10%
-label-stratified split with seed 42. CS2 retains the exact assignments in the
-existing FPS splits, so no existing CS2 validation/test review enters mixed
-training. The notebook checks split review IDs and rejects overlap between mixed
-games and external test games. Existing FPS split files are not overwritten.
-Run `logistic_reg_mixed.ipynb`, `textcnn_mixed.ipynb`, `bilstm_mixed.ipynb`, or
-`bert_mixed.ipynb` for mixed training. These notebooks set `GENRE = "MIXED"` and
-load the corresponding split files; baseline notebooks default to `"FPS"`.
-Both groups use the same external test files.
+2. Run the corresponding mixed notebook from the model table above. Mixed
+   notebooks set `GENRE = "MIXED"` and load these split files.
+
+New mixed games use an approximately 80% / 10% / 10% label-stratified split with
+seed 42. CS2 retains the exact assignments in the existing FPS splits, so prepare
+FPS splits first. Existing CS2 validation and test reviews do not enter mixed
+training. The preprocessing notebook checks review IDs across splits and rejects
+overlap between mixed games and external test games. Preparing mixed data does
+not overwrite existing FPS split files.
+
+### Training and Evaluation
+
+Run each model notebook from top to bottom. Neural notebooks update training
+curves after each completed training and validation epoch. Use validation results
+to choose training settings; the internal test cell evaluates the model currently
+in memory, which is the final epoch's model after a normal full run. Both FPS and
+mixed models use the same external test files.
 
 Train one GPU model at a time and shut down unused notebook kernels to free GPU
 memory.
+
+### GloVe Initialization
 
 The GloVe notebooks preserve the baseline architecture and training settings, but
 initialize matching embedding rows with Stanford GloVe 6B 100-dimensional vectors.
@@ -414,7 +429,10 @@ retains the existing internal and external test sections.
    files are the complete external test sets; do not add the games to
    `FPS_GAME_IDS` or `MIXED_GAME_IDS`, or merge their reviews into the training splits.
 
-3. In each trained notebook's existing kernel, run the bottom **External tests**
+3. Prepare the IMDb test CSV using the instructions below before running the
+   external evaluation loop.
+
+4. In each trained notebook's existing kernel, run the bottom **External tests**
    section. It loads `review` and `voted_up`, converts Steam `True`/`False` labels
    to `1`/`0`, and also loads the prepared IMDb movie test CSV. It prints metrics
    for each dataset and an `external_results` summary table. The section reloads
@@ -430,8 +448,13 @@ the kernel; the notebooks do not automatically save and reload model checkpoints
 
 ### IMDb Movie Test Set
 
-Run `python prepare_imdb_test.py --per-class 2000 --seed 42` from the project root.
-It downloads the official `test` split from
+Run the following command from the project root:
+
+```sh
+python prepare_imdb_test.py --per-class 2000 --seed 42
+```
+
+The script downloads the official `test` split from
 [stanfordnlp/imdb](https://huggingface.co/datasets/stanfordnlp/imdb), caches it as
 `data/raw/imdb_test.parquet`, and samples 2,000 negative and 2,000 positive reviews
 without replacement. HTML line-break tags are replaced with spaces and HTML
